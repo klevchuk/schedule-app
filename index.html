@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Расписание шоу</title>
+  <style>
+    /* ваши CSS-стили без изменений */
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('search')">Поиск танцора</button>
+    <button class="tab" onclick="switchTab('schedule')">Редактировать</button>
+  </div>
+
+  <div id="search-tab" class="tab-content active">
+    <h2>Поиск танцора</h2>
+    <input type="text" id="dancerName" placeholder="Имя танцора">
+    <button onclick="findDancer()">Найти</button>
+    <div id="dateDisplay" class="date-display" style="display:none"></div>
+    <ul id="showList"></ul>
+  </div>
+
+  <div id="schedule-tab" class="tab-content">
+    <h2>Редактировать расписание</h2>
+    <textarea id="scheduleText" placeholder="15 июня 2024
+
+Summer Vibes
+Milka, Daria, Sergey
+
+Neon Party
+Alona, Daniil"></textarea>
+    <input type="password" id="password" placeholder="Пароль">
+    <button onclick="saveSchedule()">Сохранить</button>
+    <div id="saveMsg" style="display:none"></div>
+  </div>
+</div>
+
+<script>
+const API = '/api/schedule';
+const PASSWORD = 'pass123';
+
+let scheduleData = ''; // текущее текстовое расписание
+
+/* читаем расписание при загрузке */ async function loadSchedule() { const res = await fetch(API); scheduleData = await res.text(); document.getElementById('scheduleText').value = scheduleData; } loadSchedule();
+
+/* сохранение */ async function saveSchedule() { const pwd = document.getElementById('password').value; const body = JSON.stringify({ password: pwd, data: document.getElementById('scheduleText').value }); const res = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }); const msg = document.getElementById('saveMsg'); msg.textContent = res.ok ? 'Сохранено!' : (await res.text()); msg.className = res.ok ? 'success' : 'error'; msg.style.display = 'block'; if (res.ok) scheduleData = document.getElementById('scheduleText').value; }
+
+/* поиск */ async function findDancer() { const name = document.getElementById('dancerName').value.trim(); if (!name) return;
+
+const lines = scheduleData.split(/\r?\n/); let date = '', i = 0; if (lines.length) date = lines[i++].trim();
+
+const shows = []; while (i < lines.length) { while (i < lines.length && lines[i].trim() === '') i++; if (i >= lines.length) break; const showName = lines[i++].trim(); if (!showName) continue; const dancers = []; while (i < lines.length && lines[i].trim() !== '') { lines[i].split(',').forEach(p => { const d = p.trim(); if (d) dancers.push(d); }); i++; } shows.push({ showName, dancers }); }
+
+const result = shows.filter(s => s.dancers.includes(name));
+
+document.getElementById('dateDisplay').textContent = date; document.getElementById('dateDisplay').style.display = 'block'; const ul = document.getElementById('showList'); ul.innerHTML = ''; result.length ? result.forEach(s => { const li = document.createElement('li'); li.textContent = s.showName; ul.appendChild(li); }) : ul.innerHTML = '<li>Не найдено</li>'; document.getElementById('dancerResults').style.display = 'block'; }
+
+/* переключение вкладок */ function switchTab(id){ document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active')); document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); document.getElementById(id + '-tab').classList.add('active'); document.querySelector(.tab[onclick="switchTab('${id}')"]).classList.add('active'); } </script>
+
+</body> </html> ```
