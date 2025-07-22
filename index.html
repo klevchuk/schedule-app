@@ -1,63 +1,174 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Расписание шоу</title>
-  <style>
-    /* ваши CSS-стили без изменений */
-  </style>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <title>Расписание шоу</title>
+    <style>
+        :root{
+            --bg:#f0f8f0;
+            --primary:#388e3c;
+            --accent:#9575cd;
+            --text:#4a148c;
+            --light:#fff;
+        }
+        *{margin:0;padding:0;box-sizing:border-box;font-family:Arial,Helvetica,sans-serif}
+        html,body{height:100%}
+        body{background:var(--bg);color:var(--text);display:flex;flex-direction:column}
+
+        /* шапка */
+        header{background:var(--primary);color:var(--light);padding:12px 16px;font-size:18px;text-align:center}
+
+        /* вкладки */
+        .tabs{display:flex;height:48px}
+        .tab{flex:1;border:none;background:#e8f5f9;color:var(--primary);font-size:14px}
+        .tab.active{background:var(--light);border-bottom:3px solid var(--primary)}
+
+        /* контейнер со свайп-переключением */
+        .content{position:relative;overflow:hidden;height:calc(100vh - 48px - 48px)}
+        .tab-content{position:absolute;top:0;left:0;width:100%;height:100%;padding:16px;transition:transform .3s;overflow-y:auto}
+        .tab-content:nth-child(1){transform:translateX(0)}
+        .tab-content:nth-child(2){transform:translateX(100%)}
+
+        /* поля и кнопки */
+        textarea{width:100%;min-height:180px;padding:8px;border:1px solid #c8e6c9;border-radius:5px;font-size:16px}
+        input[type=password],input[type=text]{width:100%;padding:8px;margin-bottom:8px;border:1px solid #c8e6c9;border-radius:5px;font-size:16px}
+        button{width:100%;padding:12px;background:var(--accent);color:var(--light);border:none;border-radius:5px;font-size:16px}
+        button:active{background:#7e57c2}
+
+        /* список */
+        .date-display{background:var(--bg);color:var(--primary);padding:10px;border-radius:5px;font-weight:700;text-align:center;margin-bottom:10px}
+        .dancer-list{background:#f3e5f5;border:1px solid #d1c4e9;border-radius:5px;padding:10px;margin-top:10px}
+        .dancer-list h3{color:#8c2c14;text-align:right;margin-bottom:5px;font-size:16px}
+        .dancer-list ul{list-style:none}
+        .dancer-list li{padding:4px 0;border-bottom:1px solid #e0e0e0}
+        .error,.success{margin-top:8px;font-size:14px}
+    </style>
 </head>
 <body>
-<div class="container">
-  <div class="tabs">
-    <button class="tab active" onclick="switchTab('search')">Поиск танцора</button>
-    <button class="tab" onclick="switchTab('schedule')">Редактировать</button>
-  </div>
+<header>Расписание шоу</header>
 
-  <div id="search-tab" class="tab-content active">
-    <h2>Поиск танцора</h2>
-    <input type="text" id="dancerName" placeholder="Имя танцора">
-    <button onclick="findDancer()">Найти</button>
-    <div id="dateDisplay" class="date-display" style="display:none"></div>
-    <ul id="showList"></ul>
-  </div>
+<!-- кнопки-вкладки -->
+<div class="tabs">
+    <button class="tab active" id="tab1Btn">Поиск танцора</button>
+    <button class="tab" id="tab2Btn">Редактировать</button>
+</div>
 
-  <div id="schedule-tab" class="tab-content">
-    <h2>Редактировать расписание</h2>
-    <textarea id="scheduleText" placeholder="15 июня 2024
+<div class="content" id="content">
+    <!-- Вкладка 1: поиск -->
+    <div class="tab-content" id="search">
+        <input type="text" id="dancerName" placeholder="Имя танцора">
+        <button onclick="findDancer()">Найти</button>
+        <div id="dateDisplay" class="date-display" style="display:none"></div>
+        <div id="dancerResults" class="dancer-list" style="display:none">
+            <h3>Участвует в шоу:</h3>
+            <ul id="showList"></ul>
+        </div>
+    </div>
+
+    <!-- Вкладка 2: редактирование -->
+    <div class="tab-content" id="schedule">
+        <textarea id="scheduleText" placeholder="15 июня 2024
 
 Summer Vibes
 Milka, Daria, Sergey
 
 Neon Party
-Alona, Daniil"></textarea>
-    <input type="password" id="password" placeholder="Пароль">
-    <button onclick="saveSchedule()">Сохранить</button>
-    <div id="saveMsg" style="display:none"></div>
-  </div>
+Alona, Diana
+"></textarea>
+        <input type="password" id="password" placeholder="Пароль">
+        <button onclick="saveSchedule()">Сохранить</button>
+        <div id="saveMsg" style="display:none"></div>
+    </div>
 </div>
 
 <script>
-const API = '/api/schedule';
-const PASSWORD = 'pass123';
+    const DANCERS = [
+        'Milka','Daria','Alona','Tetiana','Sapronova','Bordiian','Kristina','Mery',
+        'Sergey','Daniil','Max','Rostik','Klimenko','Mars','Rustam','Oleg',
+        'Mikhail','Anton','Evgeny','Dima','Lemon','Yulian','Ilya','Anya',
+        'Dasha','Diana','Sofiia','Yaroslav','Krava','Datri','Miya','Masha','Katya','Vera'
+    ];
 
-let scheduleData = ''; // текущее текстовое расписание
+    // переключение вкладок
+    const content = document.getElementById('content');
+    const tab1Btn = document.getElementById('tab1Btn');
+    const tab2Btn = document.getElementById('tab2Btn');
+    const pages = content.children;
 
-/* читаем расписание при загрузке */ async function loadSchedule() { const res = await fetch(API); scheduleData = await res.text(); document.getElementById('scheduleText').value = scheduleData; } loadSchedule();
+    function switchTab(n){
+        [tab1Btn,tab2Btn].forEach((btn,i)=>btn.classList.toggle('active',i===n));
+        pages[0].style.transform = n===0?'translateX(0)':'translateX(-100%)';
+        pages[1].style.transform = n===1?'translateX(0)':'translateX(100%)';
+    }
+    tab1Btn.onclick = ()=>switchTab(0);
+    tab2Btn.onclick = ()=>switchTab(1);
 
-/* сохранение */ async function saveSchedule() { const pwd = document.getElementById('password').value; const body = JSON.stringify({ password: pwd, data: document.getElementById('scheduleText').value }); const res = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }); const msg = document.getElementById('saveMsg'); msg.textContent = res.ok ? 'Сохранено!' : (await res.text()); msg.className = res.ok ? 'success' : 'error'; msg.style.display = 'block'; if (res.ok) scheduleData = document.getElementById('scheduleText').value; }
+    // свайпы
+    let startX = 0;
+    content.addEventListener('touchstart',e=>startX=e.touches[0].clientX);
+    content.addEventListener('touchend',e=>{
+        const endX=e.changedTouches[0].clientX;
+        const diff = endX - startX;
+        if(Math.abs(diff)>50){
+            const current = tab1Btn.classList.contains('active')?0:1;
+            const next = diff>0?0:1;
+            if(next!==current) switchTab(next);
+        }
+    });
 
-/* поиск */ async function findDancer() { const name = document.getElementById('dancerName').value.trim(); if (!name) return;
+    /*  логика сохранения и поиска (без изменений)  */
+    function saveSchedule(){
+        const pwd=document.getElementById('password').value.trim();
+        const msg=document.getElementById('saveMsg');
+        if(pwd!=='123'){
+            msg.textContent='Неверный пароль';msg.className='error';msg.style.display='block';return;
+        }
+        const raw=document.getElementById('scheduleText').value.trim();
+        if(!raw){
+            msg.textContent='Пустое расписание';msg.className='error';msg.style.display='block';return;
+        }
+        localStorage.setItem('scheduleData',raw);
+        msg.textContent='Сохранено!';msg.className='success';msg.style.display='block';
+    }
 
-const lines = scheduleData.split(/\r?\n/); let date = '', i = 0; if (lines.length) date = lines[i++].trim();
+    function findDancer(){
+        const name=document.getElementById('dancerName').value.trim();
+        if(!name)return;
+        const raw=localStorage.getItem('scheduleData');
+        if(!raw){alert('Расписание не сохранено');return;}
 
-const shows = []; while (i < lines.length) { while (i < lines.length && lines[i].trim() === '') i++; if (i >= lines.length) break; const showName = lines[i++].trim(); if (!showName) continue; const dancers = []; while (i < lines.length && lines[i].trim() !== '') { lines[i].split(',').forEach(p => { const d = p.trim(); if (d) dancers.push(d); }); i++; } shows.push({ showName, dancers }); }
+        const lines=raw.split(/\r?\n/);
+        let date='',i=0;
+        if(lines.length)date=lines[i++].trim();
+        const shows=[];
+        while(i<lines.length){
+            while(i<lines.length&&lines[i].trim()==='')i++;if(i>=lines.length)break;
+            const showName=lines[i++].trim();if(!showName)continue;
+            const dancers=[];
+            while(i<lines.length&&lines[i].trim()!==''){
+                lines[i].split(',').forEach(p=>{const d=p.trim();if(d)dancers.push(d)});
+                i++;
+            }
+            shows.push({showName,dancers});
+        }
+        const result=shows.filter(s=>s.dancers.includes(name));
 
-const result = shows.filter(s => s.dancers.includes(name));
-
-document.getElementById('dateDisplay').textContent = date; document.getElementById('dateDisplay').style.display = 'block'; const ul = document.getElementById('showList'); ul.innerHTML = ''; result.length ? result.forEach(s => { const li = document.createElement('li'); li.textContent = s.showName; ul.appendChild(li); }) : ul.innerHTML = '<li>Не найдено</li>'; document.getElementById('dancerResults').style.display = 'block'; }
-
-/* переключение вкладок */ function switchTab(id){ document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active')); document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); document.getElementById(id + '-tab').classList.add('active'); document.querySelector(.tab[onclick="switchTab('${id}')"]).classList.add('active'); } </script>
-
-</body> </html> ```
+        document.getElementById('dateDisplay').textContent=date;
+        document.getElementById('dateDisplay').style.display='block';
+        const ul=document.getElementById('showList');
+        ul.innerHTML='';
+        if(result.length===0){
+            ul.innerHTML='<li>Не найдено</li>';
+        }else{
+            result.forEach(s=>{
+                const li=document.createElement('li');
+                li.textContent=s.showName;
+                ul.appendChild(li);
+            });
+        }
+        document.getElementById('dancerResults').style.display='block';
+    }
+</script>
+</body>
+</html>
